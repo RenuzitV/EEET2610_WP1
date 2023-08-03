@@ -14,17 +14,22 @@ clc; close all; flush(s);
 global userInput;
 userInput = "";
 % Prepare the parameters for the animated line
+
+%setup figure for our graph, most important thing is keyPressCallback,
+%which listens for keys and sends commands to serial output
 hFig = figure('KeyPressFcn', @keyPressCallback, 'Name', 'MATLAB Command Window');
 
+%create 3 animated lines for our code
 h1 = animatedline('Color','b','LineWidth',2, 'MaximumNumPoints',500); 
 h2 = animatedline('Color','r','LineWidth',2, 'MaximumNumPoints',500); 
 h3 = animatedline('Color','g','LineWidth',2, 'MaximumNumPoints',500); 
 grid on;
+
+%setup window size
 screen_property = get(0,'screensize');
 set(gcf, "OuterPosition", [0, screen_property(4)/2, ...
     screen_property(3)/2, screen_property(4)/2])
 xlabel("Time (s)");
-ylim([-50 100]);
 
 % Start the serial COM reading and animation
 % Break the loop with Ctrl+C
@@ -33,17 +38,27 @@ while 1
         writeline(s, userInput);
         userInput = '';
     end
+    %read from serial communication
+    %do NOT add a semicolon so we can see its outputs via the command window
     string = readline(s)
+    %scans the string for inputs: %f 
+    %double %% means one % in the string
     data = sscanf(string, "Load_cell output val: %f\nsetpoint: %f\nmotor output: %f%%\ntime: %f\n");
+    %make sure the data is correct i.e. 4 outputs is extracted from string
     if (size(data) ~= 4) 
         continue;
     end
+    %assign the variables
     loadcell = data(1);
     setPoint = data(2);
     motor = data(3);
     time = data(4);
+    %set xlim to move our graph horizontally
     xlim([max(0, time/1000 - 10), time/1000 + 10]);
-    ylim([-50, min(100, motor + 75)])
+    %set ylim to resize our graph upward
+    ylim([-5, min(100, motor + 40)])
+    
+    %add points to the corresponding lines
     addpoints(h1, time/1000, loadcell)
     addpoints(h2, time/1000, setPoint)
     addpoints(h3, time/1000, motor)
