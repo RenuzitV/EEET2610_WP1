@@ -4,7 +4,7 @@
 % Select the correct port and correct Baudrate
 % Set the terminator to "CR/LF" (CR = Carriage Return and LF = Line Feed)
 clc; clear; close all; format compact; format shortG
-s = serialport('COM12', 9600);
+s = serialport('COM3', 9600);
 configureTerminator(s, "CR/LF");
 
 % Use this code for real-time data vizualisation (plot angle vs time)
@@ -31,6 +31,22 @@ set(gcf, "OuterPosition", [0, screen_property(4)/2, ...
     screen_property(3)/2, screen_property(4)/2])
 xlabel("Time (s)");
 
+
+%setup figure for our graph, most important thing is keyPressCallback,
+%which listens for keys and sends commands to serial output
+hFig2 = figure('KeyPressFcn', @keyPressCallback, 'Name', 'MATLAB Command Window');
+
+%create 3 animated lines for our code
+h4 = animatedline('Color','magenta','LineWidth',2, 'MaximumNumPoints',500);
+h5 = animatedline('Color','b','LineWidth',2, 'MaximumNumPoints',500); 
+grid on;
+
+%setup window size
+screen_property = get(0,'screensize');
+set(gcf, "OuterPosition", [0, screen_property(4)/2, ...
+    screen_property(3)/2, screen_property(4)/2])
+xlabel("Time (s)");
+
 % Start the serial COM reading and animation
 % Break the loop with Ctrl+C
 while 1
@@ -41,11 +57,11 @@ while 1
     %read from serial communication
     %do NOT add a semicolon so we can see its outputs via the command window
     string = readline(s)
-    %scans the string for inputs: %f 
+    %scans the string for inputs: %f
     %double %% means one % in the string
-    data = sscanf(string, "Load_cell output val: %f\nsetpoint: %f\nmotor output: %f%%\ntime: %f\n");
+    data = sscanf(string, "Load_cell output val: %f\nsetpoint: %f\nmotor output: %f%%\ntime: %f\ncurrent: %f\nvoltage: %f\n");
     %make sure the data is correct i.e. 4 outputs is extracted from string
-    if (size(data) ~= 4) 
+    if (size(data) >= 4) 
         continue;
     end
     %assign the variables
@@ -53,6 +69,8 @@ while 1
     setPoint = data(2);
     motor = data(3);
     time = data(4);
+    current = data(5);
+    voltage = data(6);
     %set xlim to move our graph horizontally
     xlim([max(0, time/1000 - 10), time/1000 + 10]);
     %set ylim to resize our graph upward
@@ -62,6 +80,8 @@ while 1
     addpoints(h1, time/1000, loadcell)
     addpoints(h2, time/1000, setPoint)
     addpoints(h3, time/1000, motor)
+    addpoints(h4, time/1000, current*voltage)
+    addpoints(h5, time/1000, loadcell)
     % writematrix([loadcell time/1000],'loadcell.xls','WriteMode','append')
     drawnow
 end

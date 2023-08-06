@@ -29,7 +29,8 @@
 #define MAX_SIGNAL 2000
 #define MIN_SIGNAL 1000
 // set to 0 to do manual configuration, set to 1 to start the program with no manual configuration
-#define CONFIGURED 1
+#define CONFIGURED 0
+#define RESOLUTION 12
 
 //pins:
 const int HX711_dout = 7;  //mcu > HX711 dout pin
@@ -69,7 +70,10 @@ static bool startMotor = true;
 //PID myPID(&Input, &Output, &Setpoint, 2.0, 4.0, 1.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
 
 //SMALL PROPELLER
- PID myPID(&Input, &Output, &Setpoint, 4.0, 16.0, 0.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
+const float Kp = 3.2;
+const float Ki = 14;
+const float Kd = 0;
+PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
                                                                                                                         //P_ON_E (Proportional on Error) is the default behavior
 //          (P term)    (I term)         (D term)
 // output = error*Kp + sum(error)*Ki + derror/dt*Kd 
@@ -98,6 +102,27 @@ static bool startMotor = true;
 // however, in the case of our propeller, we need the intergral part to keep adding to our output
 
 // for negative values (or when the setpoint is lower than the input), the opposite occures. it doesnt matter if the P I or D term is not zero, the system would just drive it back to what the setpoint needs.
+
+
+
+#define VOLTAGE_DT_PIN 3
+#define CURRENT_DT_PIN 2
+/* Current sensor */
+float currentValue, currentOffset;
+
+/* Voltage sensor */
+// Floats for ADC voltage & Input voltage
+float adc_voltage = 0.0;
+float in_voltage = 0.0;
+float voltageOffset;
+// Floats for resistor values in divider (in ohms)
+float R1 = 30000.0;
+float R2 = 7500.0; 
+// Float for Reference Voltage
+float ref_voltage = 3.3;
+// Integer for ADC value
+int adc_value = 0;
+
 
 //function to calibrate the motor
 void calibrateMotor() {
@@ -227,11 +252,21 @@ void calibrate() {
 }
 
 void setup() {
+
   // initialize serial communications at 9600 bps:
   Serial.begin(9600);
+  analogReadResolution(RESOLUTION);
   //wait for serial communication is ready
   //this requires serial communication to be open for the program to run
   while (!Serial);
+
+  // Current sensor calibration
+  pinMode(CURRENT_DT_PIN, INPUT);
+  currentSensorCalibration();
+
+  // Voltage sensor calibration
+  pinMode(VOLTAGE_DT_PIN, INPUT);
+  voltageSensorCalibration();
 
   //attach motor
   motor.attach(A6);
@@ -292,6 +327,11 @@ const int loadcellUpdateInterval = 0;  //increase value to slow down loadcell up
 
 //*************************************************** LOOP FUNCTION ***************************************************
 void loop() {
+  // Current sensor value
+  calculateCurrentValue();
+
+  // Voltage sensor value
+  calculateVoltageValue();
 
   //check for serial input
   //works with both serial communication from ide and matlab
@@ -320,7 +360,7 @@ void loop() {
   //and set new setpoint for PID
   static double maxSetpoint = 100;
 
-  Setpoint = max(min(map(sensorValue, 100, 1023, 0, maxSetpoint), maxSetpoint), 0);
+  Setpoint = max(min(map(sensorValue, 100, 4096, 0, maxSetpoint), maxSetpoint), 0);
 
   // check for new data/start next conversion:
   if (LoadCell.update()) newDataReady = true;
@@ -353,7 +393,10 @@ void loop() {
     Serial.printf("setpoint: %.2f\n", Setpoint);
 
     Serial.printf("motor output: %.2f%%\n", (Output - 1000) / 10);
-    Serial.printf("time: %d\r\n", millis());
+    Serial.printf("time: %d\n", millis());
+
+    Serial.printf("current: %.2f\n", currentValue);
+    Serial.printf("voltage: %.2f\r\n", in_voltage);
     tt = millis();
   }
 
@@ -376,4 +419,78 @@ void loop() {
   // we dont actually need this if we have intervals for every single operation
   // its just good practice and to make sure we dont overload the serial communication
   delay(10);
+}
+
+void calculateCurrentValue() {
+  unsigned int x=0;
+  float AcsValue=0.0,Samples=0.0,AvgAcs=0.0,AcsValueF=0.0;
+
+  for (int x = 0; x < 150; x++) { //Get 150 samples
+    AcsValue = analogRead(CURRENT_DT_PIN);     //Read current sensor values   
+    Samples = Samples + AcsValue;  //Add samples together
+    // delay (3); // let ADC settle before next sample 3ms
+  }
+
+  AvgAcs=Samples/150.0;//Taking Average of Samples
+
+  //((AvgAcs * (5.0 / 4096.0)) is converitng the read voltage in 0-5 volts
+  //2.5 is offset(I assumed that arduino is working on 5v so the viout at no current comes
+  //out to be 2.5 which is out offset. If your arduino is working on different voltage than 
+  //you must change the offset according to the input voltage)
+  //0.100v(100mV) is rise in output voltage when 1A current flows at input
+  AcsValueF = ((AvgAcs * (5 / 4096.0) - 2.5) )/0.100 - currentOffset;
+  currentValue = AcsValueF;
+
+  // Ignore value below 0.09
+  if (currentValue <= 0.09) {
+    currentValue = 0;
+  }
+}
+
+void currentSensorCalibration() {
+  unsigned int x=0;
+  float AcsValue=0.0,Samples=0.0,AvgAcs=0.0,AcsValueF;
+
+  for (int x = 0; x < 150; x++) { //Get 150 samples
+    AcsValue = analogRead(CURRENT_DT_PIN);     //Read current sensor values   
+    Samples = Samples + AcsValue;  //Add samples together
+    delay (2); // let ADC settle before next sample 3ms
+  }
+  AvgAcs=Samples/150.0;
+  AcsValueF = ((AvgAcs * (5 / 4096.0) - 2.5) )/0.100;
+  currentOffset = AcsValueF;
+
+  Serial.println(currentOffset);
+}
+
+void calculateVoltageValue() {
+  // Read the Analog Input
+  int x = 150;
+  float sum = 0, avgSum;
+  for (int i = 0; i < x; i++) {
+    adc_value = analogRead(VOLTAGE_DT_PIN);
+    sum += adc_value;
+  }
+
+  adc_value = sum/x - voltageOffset;
+
+  // Determine voltage at ADC input
+  adc_voltage  = (adc_value * ref_voltage) / 4096.0; 
+  
+  // Calculate voltage at divider input
+  in_voltage = adc_voltage / (R2/(R1+R2)) ;
+}
+
+void voltageSensorCalibration() {
+  // Read the Analog Input
+  int x = 150;
+  float sum = 0, avgSum;
+  for (int i = 0; i < x; i++) {
+    adc_value = analogRead(VOLTAGE_DT_PIN);
+    sum += adc_value;
+  }
+
+  avgSum = sum / x;
+  voltageOffset = avgSum;
+  Serial.println(voltageOffset);
 }
