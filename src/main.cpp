@@ -1,71 +1,59 @@
 #include <Arduino.h>
-#include <Servo.h>
 #include <HX711_ADC.h>
 #include <PID_v1.h>
-
-#define MAX_SIGNAL 2000
-#define MIN_SIGNAL 1000
-// set to 0 to do manual configuration, set to 1 to start the program with no manual configuration
-#define CONFIGURED 1
-
-//pins:
-const int HX711_dout = 7;  //mcu > HX711 dout pin
-const int HX711_sck = 8;   //mcu > HX711 sck pin
+#include <Servo.h>
+#include <loadcell.h>
+#include <motor.h>
+#include <utils.h>
 
 // These constants won't change. They're used to give names to the pins used:
-const int analogInPin = A0;   // Analog input pin that the potentiometer is attached to
-const int analogOutPin = A6;  // Analog output pin that the ESC signal is attached to
+const int analogInPin = A0;  // Analog input pin that the potentiometer is attached to
 
 int sensorValue = 0;  // value read from the potentialmeter
 int outputValue = 0;  // value output to the PWM (motor output)
 
-// change the known calFactor here
-// this value will be used if CONFIGURED is 0 or we choose 'e' during manual configuration
-double calFactor = -463.31;
-
-//motor class
-//doesnt matter that it says servo
+// motor class
+// doesnt matter that it says servo
 Servo motor;
 
-//HX711 constructor:
+// HX711 constructor:
 HX711_ADC LoadCell(HX711_dout, HX711_sck);
 
-
-//Define Variables we'll be connecting to
+// Define Variables we'll be connecting to
 double Setpoint, Input, Output;
 
-//static variable that tells if the motor is allowed to run
-//send 's' in the serial monitor console or s while graph is focused to start/stop the motor
-//set to false to stop the motor on startup
+// static variable that tells if the motor is allowed to run
+// send 's' in the serial monitor console or s while graph is focused to start/stop the motor
+// set to false to stop the motor on startup
 static bool startMotor = true;
 
-//Specify the links and initial tuning parameters
+// Specify the links and initial tuning parameters
 
-//intput, output, setpoint, Kp, Ki, Kd, Proportional on Measurement/Error, Direct/Reversed output (+input->+output or +input->-output)
-//BIG ASS PROPELLER
-//PID myPID(&Input, &Output, &Setpoint, 2.0, 4.0, 1.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
+// intput, output, setpoint, Kp, Ki, Kd, Proportional on Measurement/Error, Direct/Reversed output (+input->+output or +input->-output)
+// BIG ASS PROPELLER
+// PID myPID(&Input, &Output, &Setpoint, 2.0, 4.0, 1.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
 
-//SMALL PROPELLER
- PID myPID(&Input, &Output, &Setpoint, 4.0, 16.0, 0.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
-                                                                                                                        //P_ON_E (Proportional on Error) is the default behavior
+// SMALL PROPELLER
+PID myPID(&Input, &Output, &Setpoint, 4.0, 16.0, 0.0, P_ON_E, DIRECT);  // P_ON_M specifies that Proportional on Measurement be used
+                                                                        // P_ON_E (Proportional on Error) is the default behavior
 //          (P term)    (I term)         (D term)
-// output = error*Kp + sum(error)*Ki + derror/dt*Kd 
+// output = error*Kp + sum(error)*Ki + derror/dt*Kd
 // error = Setpoint - Input
-//NOTE: Kd might have a negative term actually, since it is usually used to prevent systems from overshooting.
-//basically, Kp tries to fix the error immediately, Ki tries to fix the error over time, and Kd 'predicts' the current 'error fixing rate' and prevents overshooting
-//lets say we have a curved up input resulted from our motor spinning faster and faster:
+// NOTE: Kd might have a negative term actually, since it is usually used to prevent systems from overshooting.
+// basically, Kp tries to fix the error immediately, Ki tries to fix the error over time, and Kd 'predicts' the current 'error fixing rate' and prevents overshooting
+// lets say we have a curved up input resulted from our motor spinning faster and faster:
 // - error is getting smaller, so our P term also gets smaller.
 // - our I term (at this very instance) is also getting smaller, but since it take the sum of ALL errors, it remembers Ki*pastError as pastKiSum and is now adding Ki*error to it. (this also accounts for the drop from the P term as P gets smaller, but we can simplify)
 // - our D term looks at the trendline of our input growth, let it be say y = 3x + 5. it calculates the slope (3 in this case) and multiplies it with Kd and adds it to the output. this means that if we're going fast -> slope is high -> more slowdown and vice versa.
 
-//imagine our PID terms looking like this, each dashed line means one unit of output, and we need 10 dashes to reach our Setpoint
-//   (P Term)     (I Term)     (D Term)
-// [          ] [          ] [           ] at the start, none of the terms are active, and we have an error E = 10 dashed lines. (ignoring D part, explaination later) 
-// [//////    ] [/         ] [           ] after computing, our P term shoots up immediately (Kd*(10 dashed lines) = 7 lines), our I term also shoots up similarly (Ki*(10 dashed lines) = 1 line). this Output is then sent to the motor.
-// [/////     ] [//        ] [           ] the motor spins resulting in less error, so our P term goes down (Kd*(3 lines)). the I term remains and also adds in the current error (1 line + Ki*(3 lines)). we will call "1 line" as pastKiSum from now on.
-// [///       ] [//////    ] [           ] the same thing occures: P term goes down, I term remains but adds in even more error (pastKiSum + Ki * missing lines).
-// [//        ] [////////  ] [           ] (you get the point). You may be wondering, "why is the P term removing itself? why is I taking over?" this is totally normal for our propeller system. another example will shed light into this.
-// [          ] [//////////] [           ] this is it. its done. we've drove Input to reach the required Setpoint. the error is now 0 so our P term is no longer affecting Output. The I term also no longer gets added with more stuff (pastKiSum + Ki * 0 lines)
+// imagine our PID terms looking like this, each dashed line means one unit of output, and we need 10 dashes to reach our Setpoint
+//    (P Term)     (I Term)     (D Term)
+//  [          ] [          ] [           ] at the start, none of the terms are active, and we have an error E = 10 dashed lines. (ignoring D part, explaination later)
+//  [//////    ] [/         ] [           ] after computing, our P term shoots up immediately (Kd*(10 dashed lines) = 7 lines), our I term also shoots up similarly (Ki*(10 dashed lines) = 1 line). this Output is then sent to the motor.
+//  [/////     ] [//        ] [           ] the motor spins resulting in less error, so our P term goes down (Kd*(3 lines)). the I term remains and also adds in the current error (1 line + Ki*(3 lines)).
+//  [///       ] [//////    ] [           ] the same thing occures: P term goes down, I term remains but adds in even more error (pastKiSum + Ki * missing lines).
+//  [//        ] [////////  ] [           ] (you get the point). You may be wondering, "why is the P term removing itself? why is I taking over?" this is totally normal for our propeller system. another example will shed light into this.
+//  [          ] [//////////] [           ] this is it. its done. we've drove Input to reach the required Setpoint. the error is now 0 so our P term is no longer affecting Output. The I term also no longer gets added with more stuff (pastKiSum + Ki * 0 lines)
 
 //"WHY IS IT NOT OVERSHOOTING" you may ask, and this is why:
 // as the I term grows, the past Ki terms does not move our Input at all. it merely keeps our input to stay in place, while the new error*Ki terms makes the error smaller.
@@ -74,283 +62,107 @@ static bool startMotor = true;
 // this might be confusing, but imagine a PID system to drive a car. telling the car to move 50km/h for 2 days definitely moves us closer to the setpoint (distance), so we only need the Proportinal term to drive our car.
 // however, in the case of our propeller, we need the intergral part to keep adding to our output
 
-// for negative values (or when the setpoint is lower than the input), the opposite occures. it doesnt matter if the P I or D term is not zero, the system would just drive it back to what the setpoint needs.
-
-//function to calibrate the motor
-void calibrateMotor() {
-  while(Serial.available()){Serial.read();}
-
-  Serial.println("This program will start the ESC.");
-
-  motor.attach(A6);
-
-  //ESC
-  pinMode(A9, OUTPUT);
-  analogWrite(A9, HIGH);
-  delay(100);
-  analogWrite(A9, LOW);
-
-  motor.writeMicroseconds(MAX_SIGNAL);
-
-  Serial.println("Turn off power source for 2 seconds, then turn power source on, and press any key to continue");
-
-  while (!Serial.available());
-  Serial.read();
-
-  motor.writeMicroseconds(MIN_SIGNAL);
-  delay(2000);
-
-  Serial.println("The ESC is calibrated");
-}
-
-//function to calibrate the load cell
-void calibrate() {
-  LoadCell.begin();
-//  LoadCell.setReverseOutput(); //uncomment to turn a negative output value to positive
-  
-  unsigned long stabilizingtime = millis() + 2000;  // preciscion right after power-up can be improved by adding a few seconds of stabilizing time
-  boolean _tare = true;                  //set this to false if you don't want tare to be performed in the next step
-  
-  LoadCell.start(stabilizingtime, _tare);
-
-  if (LoadCell.getTareTimeoutFlag() || LoadCell.getSignalTimeoutFlag()) {
-    //hx711 pin connection is faulty, restart
-    Serial.println("Timeout, check MCU>HX711 wiring and pin designations");
-    while ((LoadCell.getTareTimeoutFlag() || LoadCell.getSignalTimeoutFlag())) {
-      delay(1000);
-      Serial.println("Timeout, check MCU>HX711 wiring and pin designations");
-    }
-  } else {
-    LoadCell.setCalFactor(1.0);  // user set calibration value (float), initial value 1.0 may be used for this sketch
-    Serial.println("Startup is complete");
-  }
-
-  // make sure loadcell is ready to be read
-  while (!LoadCell.update());
-
-  // if we have already configured, we can tare to 0 offset and set the calibration factor, then exit the calibration
-  if (CONFIGURED) {
-    LoadCell.tare();
-    LoadCell.setCalFactor(calFactor);
-    return;
-  }
-
-  Serial.println("***");
-  Serial.println("Start calibration:");
-  Serial.println("Place the load cell an a level stable surface.");
-  Serial.println("Remove any load applied to the load cell.");
-  Serial.println("Send 't' from serial monitor to set the tare offset.");
-  Serial.println("Send 'c' from serial monitor to calibrate motor.");
-  Serial.println("Send 'e' from serial monitor to use known calFactor.");
-
-  boolean _resume = false;
-  boolean known = false;
-
-  // loop for calibration options
-  while (_resume == false) {
-    LoadCell.update();
-    if (Serial.available() > 0) {
-      char inByte = Serial.read();
-      // default option, taring the load cell
-      if (inByte == 't') LoadCell.tareNoDelay();
-      // using the known calFactor and quit the calibration process
-      else if (inByte == 'e') {
-        Serial.printf("using known calFactor: %.2f\n", calFactor);
-        LoadCell.setCalFactor(calFactor);
-        Serial.printf("using tare offset: %f\n", LoadCell.getTareOffset());
-        known = true;
-        return;
-      }
-      // calibrate motor if needed
-      else if (inByte == 'c'){
-        calibrateMotor();
-      }
-    }
-    // we get out of the loop if inByte is t and we've finished taring 
-    if (LoadCell.getTareStatus() == true) {
-      Serial.println("Tare complete");
-      Serial.printf("using tare offset: %f\n", LoadCell.getTareOffset()); // this line does not work and I do not know why
-      _resume = true;
-    }
-  }
-  
-
-  if (known) return;
-  Serial.println("Now, place your known mass on the loadcell.");
-  Serial.println("Then send the weight of this mass (i.e. 100.0) from serial monitor.");
-
-  // enter known weight
-  float known_mass = 0;
-  _resume = false;
-  while (_resume == false) {
-    LoadCell.update();
-    if (Serial.available() > 0) {
-      known_mass = Serial.parseFloat();
-      if (known_mass != 0) {
-        Serial.print("Known mass is: ");
-        Serial.println(known_mass);
-        _resume = true;
-      }
-    }
-  }
-
-  LoadCell.refreshDataSet();                                           //refresh the dataset to be sure that the known mass is measured correct
-  float newCalibrationValue = LoadCell.getNewCalibration(known_mass);  //get the new calibration value
-
-  Serial.print("New calibration value has been set to: ");
-  Serial.print(newCalibrationValue);
-  Serial.println(", use this as calibration value (calFactor) in your project sketch.");
-  Serial.println("End calibration");
-}
+// for negative values (or when the setpoint is lower than the input), the opposite occures. it doesnt matter if the P I or D term is not zero, the system would just drive it back to what the setpoint is at.
 
 void setup() {
-  // initialize serial communications at 9600 bps:
-  Serial.begin(9600);
-  //wait for serial communication is ready
-  //this requires serial communication to be open for the program to run
-  while (!Serial);
+    // initialize serial communications at 9600 bps:
+    Serial.begin(9600);
+    // wait for serial communication is ready
+    // this requires serial communication to be open for the program to run
+    while (!Serial);
 
-  //attach motor
-  motor.attach(A6);
+    // start calibration procedure
+    setupMotor(&motor);
+    loadcell_setup(&LoadCell); 
 
-  //ESC
-  //turning the ESC off and on and write 0 to motor
-  pinMode(A9, OUTPUT);
-  analogWrite(A9, LOW);
-  motor.writeMicroseconds(MIN_SIGNAL);
-  //ESC
+    // set PID mode to automatic
+    // we can set this back to manual to allow
+    myPID.SetMode(AUTOMATIC);
+    // set the output of our PID to match with the range of our esc's output range
+    // this range is calibrated during manual configuration (LOADCELL_CALIBRATED = 0)
+    myPID.SetOutputLimits(MIN_SIGNAL, MAX_SIGNAL);
 
-  //set PID mode to automatic
-  //we can set this back to manual to allow 
-  myPID.SetMode(AUTOMATIC);
-  //set the output of our PID to match with the range of our esc's output range
-  //this range is calibrated during manual configuration (CONFIGURED = 0)
-  myPID.SetOutputLimits(MIN_SIGNAL, MAX_SIGNAL);
-
-  calibrate();  //start calibration procedure
-
-  // confirmation to run the motor if on manual configuration
-  if (!CONFIGURED){
-    Serial.print("press r key to run motor");
-    bool _resume = false;
-    while (_resume == false) {
-      LoadCell.update();
-      if (Serial.available() > 0) {
-        char c = Serial.read();
-        if (c == 'r') {
-          _resume = true;
-        }
-      }
+    // confirmation to run the motor if on either manual configuration
+    if (!LOADCELL_CALIBRATED || !MOTOR_CALIBRATED) {
+        Serial.print("press r key to run motor"); 
+		while (readSerial() != 'r');
+    } else {
+        // skip confirmation and run motor
+        Serial.print("PROGRAM WILL START AFTER 2 SECONDS");
+        delay(2000);
     }
-  }
-  else {
-  // skip confirmation and run motor 
-    Serial.print("PROGRAM WILL START AFTER 2 SECONDS");
-    delay(2000);
-  }
 }
 
-//time variable for loadcell interval
-static unsigned long t = 0;
-//time variable for serial update interval
+// time variable for serial update interval
 static int tt = 0;
 
 // last Input value i.e. loadcell reading
 // since we're setting Input and Output as 0 when we're stopping the motor, we need a copy of the loadcell reading to write back to the serial communication
 static float copyInput = 0;
 
-// flag when loadcell data is ready
-static boolean newDataReady = 0;
-
-// flag when tare is done
-static bool tareDone = true;
-const int serialPrintInterval = 50;  //increase value to slow down serial print activity
-const int loadcellUpdateInterval = 0;  //increase value to slow down loadcell update activity
-
 //*************************************************** LOOP FUNCTION ***************************************************
 void loop() {
+    // check for serial input
+    // works with both serial communication from ide and matlab
+    char inByte = readSerial();
 
-  //check for serial input
-  //works with both serial communication from ide and matlab
-  if (Serial.available() > 0) {
-    char inByte = Serial.read();
-
-    //turn off/on motor
-    if (inByte == 's') startMotor = !startMotor;
-    //tare the scale again
+    // turn off/on motor
+    if (inByte == 's')
+        startMotor = !startMotor;
+    // tare the scale again
     else if (inByte == 't') {
-      motor.writeMicroseconds(MIN_SIGNAL);
-      delay(2000);
+        motor.writeMicroseconds(MIN_SIGNAL);
+        delay(2000);
 
-      LoadCell.tareNoDelay();  //tare (non blocking)
+        LoadCell.tareNoDelay();  // tare (non blocking)
 
-      tareDone = false;
+        tareDone = false;
     }
-    //calibrate the scale (or the motor)
-    else if (inByte == 'c') calibrate();
-  }
 
+	Input = copyInput = readData(&LoadCell);
 
-  // read the analog in value:
-  sensorValue = analogRead(analogInPin);
-  // map it to the range of the analog out
-  //and set new setpoint for PID
-  static double maxSetpoint = 100;
+    // read the analog in value for potentialmeter
+    sensorValue = analogRead(analogInPin);
+    // map it to the range of the analog out
+    // and set new setpoint for PID
+    static double maxSetpoint = 100;
 
-  Setpoint = max(min(map(sensorValue, 100, 1023, 0, maxSetpoint), maxSetpoint), 0);
+    Setpoint = max(min(map(sensorValue, 100, 1023, 0, maxSetpoint), maxSetpoint), 0);
 
-  // check for new data/start next conversion:
-  if (LoadCell.update()) newDataReady = true;
+    // update tare flag status
+    if (LoadCell.getTareStatus()) {
+        tareDone = true;
+    }
 
-  // get smoothed value from the dataset:
-  //only 
-  if (newDataReady && millis() > (unsigned int) t + loadcellUpdateInterval) {
-    //prob dont need kalman filer
-    // float i = simpleKalmanFilter.updateEstimate(LoadCell.getData());
-    float i = LoadCell.getData();
-    //get a copy of loadcell reading so we can display on the serial monitor
-    Input = i;
-    copyInput = i;
-    t = millis();
-    newDataReady = 0;
-  }
+    //  //print data to serial
+    if (millis() > (unsigned int)tt + serialPrintInterval) {
+        // uncomment to force positive data
+        //  i = max(i, 0);
+        Serial.printf("Load_cell output val: %.2f\n", copyInput);
 
-  //update tare flag status
-  if (LoadCell.getTareStatus()){
-    tareDone = true;
-  }
+        // print the results to the Serial Monitor:
+        Serial.printf("setpoint: %.2f\n", Setpoint);
 
-  //  //print data to serial
-  if (millis() > (unsigned int) tt + serialPrintInterval){
-    //uncomment to force positive data
-    // i = max(i, 0);
-    Serial.printf("Load_cell output val: %.2f\n", copyInput);
+        Serial.printf("motor output: %.2f%%\n", (Output - 1000) / 10);
+        Serial.printf("time: %d\r\n", millis());
+        tt = millis();
+    }
 
-    // print the results to the Serial Monitor:
-    Serial.printf("setpoint: %.2f\n", Setpoint);
+    // only run the motor is tare operation is done and start motor is true
+    if (!startMotor || !tareDone) {
+        Input = 0;
+        Output = MIN_SIGNAL;
+        myPID.SetMode(MANUAL);
+        motor.writeMicroseconds(1000);
+    } else {
+        myPID.SetMode(AUTOMATIC);
+        myPID.Compute();
+        motor.writeMicroseconds(Output);
+    }
 
-    Serial.printf("motor output: %.2f%%\n", (Output - 1000) / 10);
-    Serial.printf("time: %d\r\n", millis());
-    tt = millis();
-  }
-
-  // only run the motor is tare operation is done and start motor is true
-  if (!startMotor || !tareDone) {
-    Input = 0;
-    Output = MIN_SIGNAL;
-    myPID.SetMode(MANUAL);
-    motor.writeMicroseconds(1000);
-  }
-  else {
-    myPID.SetMode(AUTOMATIC);
-    myPID.Compute();
-    motor.writeMicroseconds(Output);
-  }
-  
-
-  // wait 10 milliseconds before the next loop for the analog-to-digital
-  // converter to settle after the last reading:
-  // we dont actually need this if we have intervals for every single operation
-  // its just good practice and to make sure we dont overload the serial communication
-  delay(10);
+    // wait 10 milliseconds before the next loop for the analog-to-digital
+    // converter to settle after the last reading:
+    // we dont actually need this if we have intervals for every single operation
+    // its just good practice and to make sure we dont overload the serial communication
+    delay(10);
 }
