@@ -40,6 +40,7 @@ setPoint = 40*cos(t+1);
 
 % add points and render 
 for k = 1:length(t)
+    %add points to the corresponding lines
     addpoints(h1, t(k), loadcell(k))
     addpoints(h2, t(k), setPoint(k))
     addpoints(h3, t(k), motor(k))
@@ -57,7 +58,6 @@ end
 % xlim([max(0, time/1000 - 10), time/1000 + 10]);
 %set ylim to resize our graph upward
 
-%add points to the corresponding lines
 % writematrix([loadcell time/1000],'loadcell.xls','WriteMode','append')
 
 % Command Window KeyPressFcn callback function
