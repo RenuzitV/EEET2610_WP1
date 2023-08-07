@@ -31,17 +31,24 @@ set(gcf, "OuterPosition", [0, screen_property(4)/2, ...
     screen_property(3)/2, screen_property(4)/2])
 xlabel("Time (s)");
 
-% Start the serial COM reading and animation
-% Break the loop with Ctrl+C
+% setup time vector
 t = linspace(0, 1e4*pi, 100000);
+%setup fake data params
 loadcell = 100*sin(t);
 motor = 60*sin(t+2);
 setPoint = 40*cos(t+1);
+
+% add points and render 
 for k = 1:length(t)
     addpoints(h1, t(k), loadcell(k))
     addpoints(h2, t(k), setPoint(k))
     addpoints(h3, t(k), motor(k))
+    
+    % set xlim to move plot horizontally to the right
+    % can also set ylim to scale plot upwards and down
     xlim([t(k)-10, t(k)+10])
+
+    % draw and sleep
     drawnow
     java.lang.Thread.sleep(50);
 end
