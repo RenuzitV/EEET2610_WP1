@@ -15,6 +15,8 @@ const int analogInPin = A0;  // Analog input pin that the potentiometer is attac
 int sensorValue = 0;  // value read from the potentialmeter
 int outputValue = 0;  // value output to the PWM (motor output)
 
+static double maxSetpoint = 250; //max Setpoint for potentialmeter
+
 // motor class
 // doesnt matter that it says servo
 Servo motor;
@@ -29,16 +31,16 @@ double Setpoint, Input, Output;
 // static variable that tells if the motor is allowed to run
 // send 's' in the serial monitor console or s while graph is focused to start/stop the motor
 // set to false to stop the motor on startup
-static bool startMotor = true;
+static bool startMotor = false;
 
 // Specify the links and initial tuning parameters
 
 // intput, output, setpoint, Kp, Ki, Kd, Proportional on Measurement/Error, Direct/Reversed output (+input->+output or +input->-output)
-// BIG ASS PROPELLER
-// PID myPID(&Input, &Output, &Setpoint, 2.0, 4.0, 1.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
+// BIG BIG ASS PROPELLER
+PID myPID(&Input, &Output, &Setpoint, 1.2, 1.5, 0.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
 
 // SMALL PROPELLER
-PID myPID(&Input, &Output, &Setpoint, 4.0, 16.0, 0.0, P_ON_E, DIRECT);  // P_ON_M specifies that Proportional on Measurement be used
+// PID myPID(&Input, &Output, &Setpoint, 4.0, 16.0, 0.0, P_ON_E, DIRECT);  // P_ON_M specifies that Proportional on Measurement be used
                                                                         // P_ON_E (Proportional on Error) is the default behavior
 //          (P term)    (I term)         (D term)
 // output = error*Kp + sum(error)*Ki + derror/dt*Kd
@@ -77,9 +79,10 @@ void setup() {
     // this requires serial communication to be open for the program to run
     while (!Serial);
 
-    Serial.println("disconnect sensor and press any key");
-    while (!readSerial());
-    zero = sensor.calibrate();
+	//current sensor
+    // Serial.println("disconnect sensor and press any key");
+    // while (!readSerial());
+    // zero = sensor.calibrate();
 
     // start calibration procedure
     setupMotor(motor);
@@ -137,7 +140,6 @@ void loop() {
     sensorValue = analogRead(analogInPin);
     // map it to the range of the analog out
     // and set new setpoint for PID
-    static double maxSetpoint = 100;
 
     Setpoint = max(min(map(sensorValue, 100, 1023, 0, maxSetpoint), maxSetpoint), 0);
 

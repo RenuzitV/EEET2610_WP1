@@ -56,7 +56,7 @@ while 1
     %set xlim to move our graph horizontally
     xlim([max(0, time/1000 - 10), time/1000 + 10]);
     %set ylim to resize our graph upward
-    ylim([-5, min(100, motor + 40)])
+    ylim([-5, min(250, setPoint + 40)])
     
     %add points to the corresponding lines
     addpoints(h1, time/1000, loadcell)
