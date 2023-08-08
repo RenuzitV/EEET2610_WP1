@@ -5,6 +5,9 @@
 #include <loadcell.h>
 #include <motor.h>
 #include <utils.h>
+#include <ACS712.h>
+
+#define CURRENT_DT_PIN 2
 
 // These constants won't change. They're used to give names to the pins used:
 const int analogInPin = A0;  // Analog input pin that the potentiometer is attached to
@@ -18,6 +21,7 @@ Servo motor;
 
 // HX711 constructor:
 HX711_ADC LoadCell(HX711_dout, HX711_sck);
+ACS712 sensor(ACS712_20A, A2);
 
 // Define Variables we'll be connecting to
 double Setpoint, Input, Output;
@@ -64,6 +68,8 @@ PID myPID(&Input, &Output, &Setpoint, 4.0, 16.0, 0.0, P_ON_E, DIRECT);  // P_ON_
 
 // for negative values (or when the setpoint is lower than the input), the opposite occures. it doesnt matter if the P I or D term is not zero, the system would just drive it back to what the setpoint is at.
 
+static double zero;
+
 void setup() {
     // initialize serial communications at 9600 bps:
     Serial.begin(9600);
@@ -71,9 +77,13 @@ void setup() {
     // this requires serial communication to be open for the program to run
     while (!Serial);
 
+    Serial.println("disconnect sensor and press any key");
+    while (!readSerial());
+    zero = sensor.calibrate();
+
     // start calibration procedure
-    setupMotor(&motor);
-    loadcell_setup(&LoadCell); 
+    setupMotor(motor);
+    loadcell_setup(LoadCell); 
 
     // set PID mode to automatic
     // we can set this back to manual to allow
@@ -98,7 +108,9 @@ static int tt = 0;
 
 // last Input value i.e. loadcell reading
 // since we're setting Input and Output as 0 when we're stopping the motor, we need a copy of the loadcell reading to write back to the serial communication
-static float copyInput = 0;
+static double copyInput = 0;
+
+const int serialPrintInterval = 50;  // increase value to slow down serial print activity
 
 //*************************************************** LOOP FUNCTION ***************************************************
 void loop() {
@@ -119,7 +131,7 @@ void loop() {
         tareDone = false;
     }
 
-	Input = copyInput = readData(&LoadCell);
+	readData(LoadCell, Input, copyInput);
 
     // read the analog in value for potentialmeter
     sensorValue = analogRead(analogInPin);
@@ -134,6 +146,7 @@ void loop() {
         tareDone = true;
     }
 
+    float I = sensor.getCurrentDC();
     //  //print data to serial
     if (millis() > (unsigned int)tt + serialPrintInterval) {
         // uncomment to force positive data
@@ -144,7 +157,22 @@ void loop() {
         Serial.printf("setpoint: %.2f\n", Setpoint);
 
         Serial.printf("motor output: %.2f%%\n", (Output - 1000) / 10);
-        Serial.printf("time: %d\r\n", millis());
+        Serial.printf("time: %d\n", millis());
+        // Serial.printf("current: %.2f\r\n", I);
+
+        float sum = 0, currentAnalog, avgCurrentAnalog, voltage;
+        for (int i = 0; i < 100; i++) {
+            currentAnalog = analogRead(CURRENT_DT_PIN);
+            sum += currentAnalog;
+        }
+        avgCurrentAnalog = sum / 100;
+        voltage = (avgCurrentAnalog) / 4095 * 5;
+        Serial.print("current: ");
+        Serial.print(voltage);
+        Serial.print(",");
+        Serial.print(avgCurrentAnalog);
+		Serial.print("\r\n");
+
         tt = millis();
     }
 
@@ -165,4 +193,17 @@ void loop() {
     // we dont actually need this if we have intervals for every single operation
     // its just good practice and to make sure we dont overload the serial communication
     delay(10);
+}
+
+void calibrateCurrent() {
+    float sum = 0, currentAnalog, avgCurrentAnalog, voltage;
+    for (int i = 0; i < 100; i++) {
+        currentAnalog = analogRead(CURRENT_DT_PIN);
+        sum += currentAnalog;
+    }
+    avgCurrentAnalog = sum / 100;
+    voltage = (avgCurrentAnalog) / 4095 * 5;
+    Serial.print(voltage);
+    Serial.print(",");
+    Serial.println(avgCurrentAnalog);
 }

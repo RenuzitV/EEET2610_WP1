@@ -3,8 +3,7 @@
 #include <loadcell.h>
 #include <motor.h>
 
-void loadcell_setup(HX711_ADC* lc) {
-    HX711_ADC LoadCell = *lc;
+void loadcell_setup(HX711_ADC& LoadCell) {
 
     LoadCell.begin();
     //  LoadCell.setReverseOutput(); //uncomment to turn a negative output value to positive
@@ -98,21 +97,19 @@ void loadcell_setup(HX711_ADC* lc) {
     Serial.println("End calibration");
 }
 
-float readData(HX711_ADC* lc) {
-    HX711_ADC LoadCell = *lc;
+void readData(HX711_ADC& LoadCell, double& Input, double& copyInput) {
     // check for new data/start next conversion:
-    if (LoadCell.update()){
-        newDataReady = true;
-    }
+    if (LoadCell.update()) newDataReady = true;
 
-    // get smoothed value from the dataset
+    // get smoothed value from the dataset:
     if (newDataReady && millis() > (unsigned int)t + loadcellUpdateInterval) {
         // prob dont need kalman filer
         //  float i = simpleKalmanFilter.updateEstimate(LoadCell.getData());
         float i = LoadCell.getData();
         // get a copy of loadcell reading so we can display on the serial monitor
+        Input = i;
+        copyInput = i;
         t = millis();
         newDataReady = 0;
-        return i;
     }
 }

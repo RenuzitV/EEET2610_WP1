@@ -2,9 +2,7 @@
 #include <utils.h>
 
 char readSerial() {
-    while (true) {
-        if (Serial.available() > 0) {
-            return Serial.read();
-        }
+    if (Serial.available() > 0) {
+        return Serial.read();
     }
 }

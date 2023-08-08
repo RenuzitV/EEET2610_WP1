@@ -9,10 +9,9 @@
 #define LOADCELL_CALIBRATED 1
 
 // pins:
-const int HX711_dout = 7;  // mcu > HX711 dout pin
-const int HX711_sck = 8;   // mcu > HX711 sck pin
+static const int HX711_dout = 7;  // mcu > HX711 dout pin
+static const int HX711_sck = 8;   // mcu > HX711 sck pin
 
-const int serialPrintInterval = 50;    // increase value to slow down serial print activity
 const int loadcellUpdateInterval = 0;  // increase value to slow down loadcell update activity
 
 // change the known calFactor here
@@ -28,7 +27,7 @@ static bool tareDone = true;
 // time variable for loadcell read interval
 static unsigned long t = 0;
 
-void loadcell_setup(HX711_ADC *ls);
-float readData(HX711_ADC* lc) ;
+void loadcell_setup(HX711_ADC& ls);
+void readData(HX711_ADC& LoadCell, double& Input, double& copyInput);
 
 #endif

@@ -2,8 +2,7 @@
 #include <Servo.h>
 #include <motor.h>
 
-void setupMotor(Servo *m) {
-    Servo motor = *m;
+void setupMotor(Servo& motor) {
 
     // attach motor
     motor.attach(A6);
@@ -20,7 +19,7 @@ void setupMotor(Servo *m) {
     //calibration time
 
     //return if we dont need to calibrate
-    if (MOTOR_CALIBRATED) {
+    if (MOTOR_CALIBRATED) { 
         return;
     }
 
