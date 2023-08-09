@@ -37,7 +37,7 @@ static bool startMotor = false;
 
 // intput, output, setpoint, Kp, Ki, Kd, Proportional on Measurement/Error, Direct/Reversed output (+input->+output or +input->-output)
 // BIG BIG ASS PROPELLER
-PID myPID(&Input, &Output, &Setpoint, 1.2, 1.5, 0.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
+PID myPID(&Input, &Output, &Setpoint, 0.8, 1.7, 0.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
 
 // SMALL PROPELLER
 // PID myPID(&Input, &Output, &Setpoint, 4.0, 16.0, 0.0, P_ON_E, DIRECT);  // P_ON_M specifies that Proportional on Measurement be used
@@ -80,9 +80,9 @@ void setup() {
     while (!Serial);
 
 	//current sensor
-    // Serial.println("disconnect sensor and press any key");
-    // while (!readSerial());
-    // zero = sensor.calibrate();
+    Serial.println("disconnect sensor and press any key");
+    while (!readSerial());
+    zero = sensor.calibrate();
 
     // start calibration procedure
     setupMotor(motor);
@@ -174,8 +174,7 @@ void loop() {
         Serial.print(",");
         Serial.print(avgCurrentAnalog);
 		Serial.print("\r\n");
-
-        tt = millis();
+        
     }
 
     // only run the motor is tare operation is done and start motor is true
