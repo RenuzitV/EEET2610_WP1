@@ -8,8 +8,6 @@
 #include <current_sensor_acs712.h>
 #include <voltage_sensor.h>
 
-#define CURRENT_DT_PIN 2
-
 // These constants won't change. They're used to give names to the pins used:
 const int analogInPin = A0;  // Analog input pin that the potentiometer is attached to
 
@@ -74,6 +72,8 @@ PID myPID(&Input, &Output, &Setpoint, 1.2, 1.5, 0.0, P_ON_E, DIRECT);  //P_ON_M 
 static double zero;
 
 void setup() {
+    analogReadResolution(12);
+
     // initialize serial communications at 9600 bps:
     Serial.begin(9600);
     // wait for serial communication is ready
@@ -143,7 +143,7 @@ void loop() {
     // map it to the range of the analog out
     // and set new setpoint for PID
 
-    Setpoint = max(min(map(sensorValue, 100, 1023, 0, maxSetpoint), maxSetpoint), 0);
+    Setpoint = max(min(map(sensorValue, 100, 4095, 0, maxSetpoint), maxSetpoint), 0);
 
     // update tare flag status
     if (LoadCell.getTareStatus()) {
