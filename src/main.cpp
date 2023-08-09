@@ -5,7 +5,8 @@
 #include <loadcell.h>
 #include <motor.h>
 #include <utils.h>
-#include <ACS712.h>
+#include <current_sensor_acs712.h>
+#include <voltage_sensor.h>
 
 #define CURRENT_DT_PIN 2
 
@@ -79,10 +80,11 @@ void setup() {
     // this requires serial communication to be open for the program to run
     while (!Serial);
 
-	//current sensor
-    // Serial.println("disconnect sensor and press any key");
-    // while (!readSerial());
-    // zero = sensor.calibrate();
+	// Initialize current + voltage sensor
+    Serial.println("disconnect sensor and press any key");
+    initializeCurrentSensor();
+    calibrateVoltageSensor();
+    while (!readSerial());
 
     // start calibration procedure
     setupMotor(motor);
@@ -160,20 +162,12 @@ void loop() {
 
         Serial.printf("motor output: %.2f%%\n", (Output - 1000) / 10);
         Serial.printf("time: %d\n", millis());
-        // Serial.printf("current: %.2f\r\n", I);
-
-        float sum = 0, currentAnalog, avgCurrentAnalog, voltage;
-        for (int i = 0; i < 100; i++) {
-            currentAnalog = analogRead(CURRENT_DT_PIN);
-            sum += currentAnalog;
-        }
-        avgCurrentAnalog = sum / 100;
-        voltage = (avgCurrentAnalog) / 4095 * 5;
-        Serial.print("current: ");
-        Serial.print(voltage);
-        Serial.print(",");
-        Serial.print(avgCurrentAnalog);
-		Serial.print("\r\n");
+        
+        float cur = getCurrentValue();
+        float vol = getVoltageValue();
+        Serial.printf("current: %.2f amp\n", cur);
+        Serial.printf("voltage: %.2f vol\n", vol);
+        Serial.printf("power: %.2fW\r\n", cur*vol);
 
         tt = millis();
     }
@@ -195,17 +189,4 @@ void loop() {
     // we dont actually need this if we have intervals for every single operation
     // its just good practice and to make sure we dont overload the serial communication
     delay(10);
-}
-
-void calibrateCurrent() {
-    float sum = 0, currentAnalog, avgCurrentAnalog, voltage;
-    for (int i = 0; i < 100; i++) {
-        currentAnalog = analogRead(CURRENT_DT_PIN);
-        sum += currentAnalog;
-    }
-    avgCurrentAnalog = sum / 100;
-    voltage = (avgCurrentAnalog) / 4095 * 5;
-    Serial.print(voltage);
-    Serial.print(",");
-    Serial.println(avgCurrentAnalog);
 }
