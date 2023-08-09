@@ -19,7 +19,7 @@ userInput = "";
 %which listens for keys and sends commands to serial output
 hFig = figure('KeyPressFcn', @keyPressCallback, 'Name', 'MATLAB Command Window');
 
-%create 3 animated lines for our code
+%create 3 animated lines for our 
 h1 = animatedline('Color','b','LineWidth',2, 'MaximumNumPoints',500); 
 h2 = animatedline('Color','r','LineWidth',2, 'MaximumNumPoints',500); 
 h3 = animatedline('Color','g','LineWidth',2, 'MaximumNumPoints',500); 
@@ -43,6 +43,8 @@ for k = 1:length(t)
     addpoints(h1, t(k), loadcell(k))
     addpoints(h2, t(k), setPoint(k))
     addpoints(h3, t(k), motor(k))
+
+    legend({"loadcell", "setPoint", "motor"})
     
     % set xlim to move plot horizontally to the right
     % can also set ylim to scale plot upwards and down

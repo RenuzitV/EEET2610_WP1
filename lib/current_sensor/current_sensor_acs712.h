@@ -4,8 +4,10 @@
 #include <Arduino.h>
 
 #define CURRENT_DT_PIN 2
-const float Ai = 87.869, Bi = 3145.8; // Analog(currentSensor) = A*I + B
+static float Ai = 87.869/100*85, Bi = 3145.8; // Analog(currentSensor) = A*I + B
+static float currentOffset = 0;
 
+void calibrateCurrentSensor();
 void initializeCurrentSensor();
 float getCurrentValue();
 

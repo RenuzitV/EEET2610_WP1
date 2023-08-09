@@ -7,6 +7,7 @@
 #include <utils.h>
 #include <current_sensor_acs712.h>
 #include <voltage_sensor.h>
+#include <ACS712.h>
 
 // These constants won't change. They're used to give names to the pins used:
 const int analogInPin = A0;  // Analog input pin that the potentiometer is attached to
@@ -22,6 +23,8 @@ Servo motor;
 
 // HX711 constructor:
 HX711_ADC LoadCell(HX711_dout, HX711_sck);
+
+static double zero;
 ACS712 sensor(ACS712_20A, A2);
 
 // Define Variables we'll be connecting to
@@ -36,7 +39,7 @@ static bool startMotor = false;
 
 // intput, output, setpoint, Kp, Ki, Kd, Proportional on Measurement/Error, Direct/Reversed output (+input->+output or +input->-output)
 // BIG BIG ASS PROPELLER
-PID myPID(&Input, &Output, &Setpoint, 1.2, 1.5, 0.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
+PID myPID(&Input, &Output, &Setpoint, 0.8, 1.8, 0.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
 
 // SMALL PROPELLER
 // PID myPID(&Input, &Output, &Setpoint, 4.0, 16.0, 0.0, P_ON_E, DIRECT);  // P_ON_M specifies that Proportional on Measurement be used
@@ -69,22 +72,13 @@ PID myPID(&Input, &Output, &Setpoint, 1.2, 1.5, 0.0, P_ON_E, DIRECT);  //P_ON_M 
 
 // for negative values (or when the setpoint is lower than the input), the opposite occures. it doesnt matter if the P I or D term is not zero, the system would just drive it back to what the setpoint is at.
 
-static double zero;
-
 void setup() {
-    analogReadResolution(12);
 
     // initialize serial communications at 9600 bps:
     Serial.begin(9600);
     // wait for serial communication is ready
     // this requires serial communication to be open for the program to run
     while (!Serial);
-
-	// Initialize current + voltage sensor
-    Serial.println("disconnect sensor and press any key");
-    initializeCurrentSensor();
-    calibrateVoltageSensor();
-    while (!readSerial());
 
     // start calibration procedure
     setupMotor(motor);
@@ -106,6 +100,15 @@ void setup() {
         Serial.print("PROGRAM WILL START AFTER 2 SECONDS");
         delay(2000);
     }
+
+    analogReadResolution(12);
+
+    // Initialize current + voltage sensor
+    Serial.println("disconnect sensor and press any key");
+    // calibrateCurrentSensor();
+    zero = sensor.calibrate();
+    calibrateVoltageSensor();
+    while (!readSerial());
 }
 
 // time variable for serial update interval
@@ -150,7 +153,6 @@ void loop() {
         tareDone = true;
     }
 
-    float I = sensor.getCurrentDC();
     //  //print data to serial
     if (millis() > (unsigned int)tt + serialPrintInterval) {
         // uncomment to force positive data
@@ -163,8 +165,9 @@ void loop() {
         Serial.printf("motor output: %.2f%%\n", (Output - 1000) / 10);
         Serial.printf("time: %d\n", millis());
         
-        float cur = getCurrentValue();
+        // float cur = getCurrentValue();
         float vol = getVoltageValue();
+        float cur = sensor.getCurrentDC();
         Serial.printf("current: %.2f amp\n", cur);
         Serial.printf("voltage: %.2f vol\n", vol);
         Serial.printf("power: %.2fW\r\n", cur*vol);
