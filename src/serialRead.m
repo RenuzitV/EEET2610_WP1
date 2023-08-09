@@ -74,7 +74,7 @@ function keyPressCallback(src, event)
     key = event.Key;
 
     % Handle the user input
-    if (strcmp(key, 's') || strcmp(key, 't'))
+    if (strcmp(key, 's') || strcmp(key, 't') || strcmp(key, '\n'))
         userInput = key;
     end
 end
