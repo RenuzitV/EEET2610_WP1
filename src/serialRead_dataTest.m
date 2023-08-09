@@ -38,8 +38,12 @@ loadcell = 100*sin(t);
 motor = 60*sin(t+2);
 setPoint = 40*cos(t+1);
 
-lgd = legend({"loadcell", "setPoint", "motor"})
-title(lgd, "Legends")
+lgd = legend({"loadcell", "setPoint", "motor"});
+title(lgd, "Legends");
+title("PID control", 'FontSize', 14)
+% annotation(figure,'textbox',...
+%     [0.458888888888889 0.940699604743081 0.0766666666666667 0.0444664031620553],...
+%     'String',{'PID control'});
 
 % add points and render 
 for k = 1:length(t)
