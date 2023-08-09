@@ -38,13 +38,16 @@ loadcell = 100*sin(t);
 motor = 60*sin(t+2);
 setPoint = 40*cos(t+1);
 
+lgd = legend({"loadcell", "setPoint", "motor"})
+title(lgd, "Legends")
+
 % add points and render 
 for k = 1:length(t)
     addpoints(h1, t(k), loadcell(k))
     addpoints(h2, t(k), setPoint(k))
     addpoints(h3, t(k), motor(k))
 
-    legend({"loadcell", "setPoint", "motor"})
+    
     
     % set xlim to move plot horizontally to the right
     % can also set ylim to scale plot upwards and down
@@ -54,6 +57,7 @@ for k = 1:length(t)
     drawnow
     java.lang.Thread.sleep(50);
 end
+
 %assign the variables
 %set xlim to move our graph horizontally
 % xlim([max(0, time/1000 - 10), time/1000 + 10]);
