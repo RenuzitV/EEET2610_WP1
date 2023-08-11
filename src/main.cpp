@@ -39,7 +39,7 @@ static bool startMotor = false;
 
 // intput, output, setpoint, Kp, Ki, Kd, Proportional on Measurement/Error, Direct/Reversed output (+input->+output or +input->-output)
 // BIG BIG ASS PROPELLER
-PID myPID(&Input, &Output, &Setpoint, 0.8, 1.8, 0.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
+PID myPID(&Input, &Output, &Setpoint, 0.7, 2, 0.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
 
 // SMALL PROPELLER
 // PID myPID(&Input, &Output, &Setpoint, 4.0, 16.0, 0.0, P_ON_E, DIRECT);  // P_ON_M specifies that Proportional on Measurement be used
@@ -93,11 +93,11 @@ void setup() {
 
     // confirmation to run the motor if on either manual configuration
     if (!LOADCELL_CALIBRATED || !MOTOR_CALIBRATED) {
-        Serial.print("press r key to run motor"); 
+        Serial.println("press r key to run motor"); 
 		while (readSerial() != 'r');
     } else {
         // skip confirmation and run motor
-        Serial.print("PROGRAM WILL START AFTER 2 SECONDS");
+        Serial.println("PROGRAM WILL START AFTER 2 SECONDS");
         delay(2000);
     }
 
@@ -146,7 +146,7 @@ void loop() {
     // map it to the range of the analog out
     // and set new setpoint for PID
 
-    Setpoint = max(min(map(sensorValue, 100, 4095, 0, maxSetpoint), maxSetpoint), 0);
+    Setpoint = max(min(map(sensorValue, 150, 4095, 0, maxSetpoint), maxSetpoint), 0);
 
     // update tare flag status
     if (LoadCell.getTareStatus()) {

@@ -34,15 +34,20 @@ xlabel("Time (s)");
 % Start the serial COM reading and animation
 % Break the loop with Ctrl+C
 while 1
+    % write to serial
     if (~strcmp(userInput, ''))
         writeline(s, userInput);
         userInput = '';
     end
     %read from serial communication
     %do NOT add a semicolon so we can see its outputs via the command window
-    string = readline(s)
+    string = readline(s);
     %scans the string for inputs: %f 
     %double %% means one % in the string
+    if (size(string) == 0)
+        continue;
+    end
+    disp(string)
     data = sscanf(string, "Load_cell output val: %f\nsetpoint: %f\nmotor output: %f%%\ntime: %f\n");
     %make sure the data is correct i.e. 4 outputs is extracted from string
     if (size(data) < 4) 
@@ -56,7 +61,7 @@ while 1
     %set xlim to move our graph horizontally
     xlim([max(0, time/1000 - 10), time/1000 + 10]);
     %set ylim to resize our graph upward
-    ylim([-5, min(250, setPoint + 40)])
+    ylim([-5, min(250, round(setPoint/40)*40 + 40)])
     
     %add points to the corresponding lines
     addpoints(h1, time/1000, loadcell)
@@ -66,7 +71,7 @@ while 1
     drawnow
 end
 
-% Command Window KeyPressFcn callback function
+% Command Window KeyPressFcn callback functions
 function keyPressCallback(src, event)
     % Use the global variable 'userInput' inside the callback function
     global userInput;
@@ -74,7 +79,7 @@ function keyPressCallback(src, event)
     key = event.Key;
 
     % Handle the user input
-    if (strcmp(key, 's') || strcmp(key, 't'))
+    if (strcmp(key, 's') || strcmp(key, 't') || strcmp(key, '\n'))
         userInput = key;
     end
 end

@@ -16,7 +16,7 @@ const int loadcellUpdateInterval = 0;  // increase value to slow down loadcell u
 
 // change the known calFactor here
 // this value will be used if LOADCELL_CALIBRATED is 0 or we choose 'e' during manual configuration
-const double calFactor = -463.31;
+const double calFactor = 430.56;
 
 // flag when loadcell data is ready
 static boolean newDataReady = 0;

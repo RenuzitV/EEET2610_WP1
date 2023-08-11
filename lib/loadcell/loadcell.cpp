@@ -6,7 +6,7 @@
 void loadcell_setup(HX711_ADC& LoadCell) {
 
     LoadCell.begin();
-    //  LoadCell.setReverseOutput(); //uncomment to turn a negative output value to positive
+     LoadCell.setReverseOutput(); //uncomment to turn a negative output value to positive
 
     unsigned long stabilizingtime = millis() + 2000;  // preciscion right after power-up can be improved by adding a few seconds of stabilizing time
     boolean _tare = true;                             // set this to false if you don't want tare to be performed in the next step

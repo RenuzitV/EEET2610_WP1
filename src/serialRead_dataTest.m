@@ -80,5 +80,6 @@ function keyPressCallback(src, event)
     % Handle the user input
     if (strcmp(key, 's') || strcmp(key, 't'))
         userInput = key;
+        fprintf(userInput);
     end
 end
