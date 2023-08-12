@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 #include <Arduino.h>
 #include <HX711_ADC.h>
 #include <PID_v1.h>
