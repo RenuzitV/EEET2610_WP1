@@ -19,7 +19,7 @@ userInput = "";
 %which listens for keys and sends commands to serial output
 hFig = figure('KeyPressFcn', @keyPressCallback, 'Name', 'MATLAB Command Window');
 
-%create 3 animated lines for our code
+%create 3 animated lines for our 
 h1 = animatedline('Color','b','LineWidth',2, 'MaximumNumPoints',500); 
 h2 = animatedline('Color','r','LineWidth',2, 'MaximumNumPoints',500); 
 h3 = animatedline('Color','g','LineWidth',2, 'MaximumNumPoints',500); 
@@ -38,11 +38,20 @@ loadcell = 100*sin(t);
 motor = 60*sin(t+2);
 setPoint = 40*cos(t+1);
 
+lgd = legend({"loadcell", "setPoint", "motor"});
+title(lgd, "Legends");
+title("PID control", 'FontSize', 14)
+% annotation(figure,'textbox',...
+%     [0.458888888888889 0.940699604743081 0.0766666666666667 0.0444664031620553],...
+%     'String',{'PID control'});
+
 % add points and render 
 for k = 1:length(t)
     addpoints(h1, t(k), loadcell(k))
     addpoints(h2, t(k), setPoint(k))
     addpoints(h3, t(k), motor(k))
+
+    
     
     % set xlim to move plot horizontally to the right
     % can also set ylim to scale plot upwards and down
@@ -52,6 +61,7 @@ for k = 1:length(t)
     drawnow
     java.lang.Thread.sleep(50);
 end
+
 %assign the variables
 %set xlim to move our graph horizontally
 % xlim([max(0, time/1000 - 10), time/1000 + 10]);
@@ -70,5 +80,6 @@ function keyPressCallback(src, event)
     % Handle the user input
     if (strcmp(key, 's') || strcmp(key, 't'))
         userInput = key;
+        fprintf(userInput);
     end
 end
