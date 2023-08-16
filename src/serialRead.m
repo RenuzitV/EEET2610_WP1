@@ -67,7 +67,7 @@ while 1
     addpoints(h1, time/1000, loadcell)
     addpoints(h2, time/1000, setPoint)
     addpoints(h3, time/1000, motor)
-    % writematrix([loadcell time/1000],'loadcell.xls','WriteMode','append')
+    % writematrix([loadcell setPoint time/1000],'loadcell3.xls','WriteMode','append')
     drawnow
 end
 

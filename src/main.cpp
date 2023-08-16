@@ -38,7 +38,7 @@ static bool startMotor = false;
 
 // intput, output, setpoint, Kp, Ki, Kd, Proportional on Measurement/Error, Direct/Reversed output (+input->+output or +input->-output)
 // BIG BIG ASS PROPELLER
-PID myPID(&Input, &Output, &Setpoint, 0.7, 2, 0.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
+PID myPID(&Input, &Output, &Setpoint, 0.7, 3, 0.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
 
 // SMALL PROPELLER
 // PID myPID(&Input, &Output, &Setpoint, 4.0, 16.0, 0.0, P_ON_E, DIRECT);  // P_ON_M specifies that Proportional on Measurement be used
@@ -117,7 +117,7 @@ static int tt = 0;
 // since we're setting Input and Output as 0 when we're stopping the motor, we need a copy of the loadcell reading to write back to the serial communication
 static double copyInput = 0;
 
-const int serialPrintInterval = 50;  // increase value to slow down serial print activity
+const int serialPrintInterval = 40;  // increase value to slow down serial print activity
 
 //*************************************************** LOOP FUNCTION ***************************************************
 void loop() {
@@ -136,6 +136,14 @@ void loop() {
         LoadCell.tareNoDelay();  // tare (non blocking)
 
         tareDone = false;
+    }
+    //tare current sensor
+    else if (inByte == 'y'){
+        zero = sensor.calibrate();
+    }
+    //tare voltage sensor
+    else if (inByte = 'u'){
+        calibrateVoltageSensor();
     }
 
 	readData(LoadCell, Input, copyInput);
