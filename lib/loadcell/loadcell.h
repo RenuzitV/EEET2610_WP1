@@ -9,23 +9,23 @@
 #define LOADCELL_CALIBRATED 1
 
 // pins:
-static const int HX711_dout = 7;  // mcu > HX711 dout pin
-static const int HX711_sck = 8;   // mcu > HX711 sck pin
-
-const int loadcellUpdateInterval = 0;  // increase value to slow down loadcell update activity
+extern const int HX711_dout;  // mcu > HX711 dout pin
+extern const int HX711_sck;   // mcu > HX711 sck pin
 
 // change the known calFactor here
 // this value will be used if LOADCELL_CALIBRATED is 0 or we choose 'e' during manual configuration
-const double calFactor = 430.56;
+extern const double calFactor;
+
+extern const int loadcellUpdateInterval;  // increase value to slow down loadcell update activity
 
 // flag when loadcell data is ready
-static boolean newDataReady = 0;
+extern boolean newDataReady;
 
 // flag when tare is done
-static bool tareDone = true;
+extern bool tareDone;
 
 // time variable for loadcell read interval
-static unsigned long t = 0;
+extern unsigned long t;
 
 void loadcell_setup(HX711_ADC& ls);
 void readData(HX711_ADC& LoadCell, double& Input, double& copyInput);

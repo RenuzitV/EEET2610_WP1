@@ -3,6 +3,27 @@
 #include <loadcell.h>
 #include <motor.h>
 
+int outputValue = 0;  // value output to the PWM (motor output)
+
+const int HX711_dout = A7;  // mcu > HX711 dout pin
+const int HX711_sck = A8;   // mcu > HX711 sck pin
+
+// change the known calFactor here
+// this value will be used if LOADCELL_CALIBRATED is 0 or we choose 'e' during manual configuration
+const double calFactor = 430.56;
+
+const int loadcellUpdateInterval = 0;  // increase value to slow down loadcell update activity
+
+// flag when loadcell data is ready
+boolean newDataReady = false;
+
+// flag when tare is done
+bool tareDone = true;
+
+
+// time variable for loadcell read interval
+unsigned long t = 0;
+
 void loadcell_setup(HX711_ADC& LoadCell) {
 
     LoadCell.begin();

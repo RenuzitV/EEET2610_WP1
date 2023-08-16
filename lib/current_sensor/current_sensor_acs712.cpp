@@ -1,6 +1,9 @@
 #include <Arduino.h>
 #include <current_sensor_acs712.h>
 
+float Ai = 87.869 / 100 * 85, Bi = 3145.8;  // Analog(currentSensor) = A*I + B
+float currentOffset = 0;
+
 void calibrateCurrentSensor() {
   initializeCurrentSensor();
 

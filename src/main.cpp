@@ -9,11 +9,10 @@
 #include <voltage_sensor.h>
 #include <ACS712.h>
 
-// These constants won't change. They're used to give names to the pins used:
-const int analogInPin = A0;  // Analog input pin that the potentiometer is attached to
-
 int sensorValue = 0;  // value read from the potentialmeter
-int outputValue = 0;  // value output to the PWM (motor output)
+
+// These constants won't change. They're used to give names to the pins used:
+const int potentiometerInPin = A0;  // Analog input pin that the potentiometer is attached to
 
 static double maxSetpoint = 250; //max Setpoint for potentialmeter
 
@@ -142,11 +141,11 @@ void loop() {
 	readData(LoadCell, Input, copyInput);
 
     // read the analog in value for potentialmeter
-    sensorValue = analogRead(analogInPin);
+    sensorValue = analogRead(potentiometerInPin);
     // map it to the range of the analog out
     // and set new setpoint for PID
 
-    Setpoint = max(min(map(sensorValue, 150, 4095, 0, maxSetpoint), maxSetpoint), 0);
+    Setpoint = max(min(map(sensorValue, 200 , 4095, 0, maxSetpoint), maxSetpoint), 0);
 
     // update tare flag status
     if (LoadCell.getTareStatus()) {
@@ -170,7 +169,9 @@ void loop() {
         float cur = sensor.getCurrentDC();
         Serial.printf("current: %.2f amp\n", cur);
         Serial.printf("voltage: %.2f vol\n", vol);
-        Serial.printf("power: %.2fW\r\n", cur*vol);
+        Serial.printf("power: %.2fW\n", cur*vol);
+        Serial.printf("sensor value: %.2f\n", sensorValue);
+        Serial.printf("\r\n");
 
         tt = millis();
     }
