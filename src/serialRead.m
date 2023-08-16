@@ -82,5 +82,4 @@ function keyPressCallback(src, event)
     if (strcmp(key, 's') || strcmp(key, 't') || strcmp(key, '\n'))
         userInput = key;
     end
->>>>>>> Stashed changes
 end

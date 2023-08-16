@@ -2,25 +2,22 @@
 #include <Servo.h>
 #include <motor.h>
 
-void setupMotor(Servo *m) {
-    Servo motor = *m;
+const int motorOutPin = A9;  // Analog output pin that the ESC signal is attached to
+
+void setupMotor(Servo& motor) {
 
     // attach motor
-    motor.attach(A6);
+    motor.attach(motorOutPin);
 
-    // ESC
-    // turning the ESC off and on and write 0 to motor
-    pinMode(A9, OUTPUT);
-    analogWrite(A9, LOW);
+    // write 0 to motor
     motor.writeMicroseconds(MIN_SIGNAL);
-    // ESC
     
     //done with setup
 
     //calibration time
 
     //return if we dont need to calibrate
-    if (MOTOR_CALIBRATED) {
+    if (MOTOR_CALIBRATED) { 
         return;
     }
 
@@ -30,13 +27,7 @@ void setupMotor(Servo *m) {
 
     Serial.println("This program will start the ESC.");
 
-    motor.attach(A6);
-
-    // ESC
-    pinMode(A9, OUTPUT);
-    analogWrite(A9, HIGH);
-    delay(100);
-    analogWrite(A9, LOW);
+    motor.attach(motorOutPin);
 
     motor.writeMicroseconds(MAX_SIGNAL);
 

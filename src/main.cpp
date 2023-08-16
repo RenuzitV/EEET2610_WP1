@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 #include <Arduino.h>
 #include <HX711_ADC.h>
 #include <PID_v1.h>
@@ -6,12 +5,16 @@
 #include <loadcell.h>
 #include <motor.h>
 #include <utils.h>
-
-// These constants won't change. They're used to give names to the pins used:
-const int analogInPin = A0;  // Analog input pin that the potentiometer is attached to
+#include <current_sensor_acs712.h>
+#include <voltage_sensor.h>
+#include <ACS712.h>
 
 int sensorValue = 0;  // value read from the potentialmeter
-int outputValue = 0;  // value output to the PWM (motor output)
+
+// These constants won't change. They're used to give names to the pins used:
+const int potentiometerInPin = A0;  // Analog input pin that the potentiometer is attached to
+
+static double maxSetpoint = 250; //max Setpoint for potentialmeter
 
 // motor class
 // doesnt matter that it says servo
@@ -20,22 +23,25 @@ Servo motor;
 // HX711 constructor:
 HX711_ADC LoadCell(HX711_dout, HX711_sck);
 
+static double zero;
+ACS712 sensor(ACS712_20A, A2);
+
 // Define Variables we'll be connecting to
 double Setpoint, Input, Output;
 
 // static variable that tells if the motor is allowed to run
 // send 's' in the serial monitor console or s while graph is focused to start/stop the motor
 // set to false to stop the motor on startup
-static bool startMotor = true;
+static bool startMotor = false;
 
 // Specify the links and initial tuning parameters
 
 // intput, output, setpoint, Kp, Ki, Kd, Proportional on Measurement/Error, Direct/Reversed output (+input->+output or +input->-output)
-// BIG ASS PROPELLER
-// PID myPID(&Input, &Output, &Setpoint, 2.0, 4.0, 1.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
+// BIG BIG ASS PROPELLER
+PID myPID(&Input, &Output, &Setpoint, 0.7, 2, 0.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
 
 // SMALL PROPELLER
-PID myPID(&Input, &Output, &Setpoint, 4.0, 16.0, 0.0, P_ON_E, DIRECT);  // P_ON_M specifies that Proportional on Measurement be used
+// PID myPID(&Input, &Output, &Setpoint, 4.0, 16.0, 0.0, P_ON_E, DIRECT);  // P_ON_M specifies that Proportional on Measurement be used
                                                                         // P_ON_E (Proportional on Error) is the default behavior
 //          (P term)    (I term)         (D term)
 // output = error*Kp + sum(error)*Ki + derror/dt*Kd
@@ -66,6 +72,7 @@ PID myPID(&Input, &Output, &Setpoint, 4.0, 16.0, 0.0, P_ON_E, DIRECT);  // P_ON_
 // for negative values (or when the setpoint is lower than the input), the opposite occures. it doesnt matter if the P I or D term is not zero, the system would just drive it back to what the setpoint is at.
 
 void setup() {
+
     // initialize serial communications at 9600 bps:
     Serial.begin(9600);
     // wait for serial communication is ready
@@ -73,8 +80,8 @@ void setup() {
     while (!Serial);
 
     // start calibration procedure
-    setupMotor(&motor);
-    loadcell_setup(&LoadCell); 
+    setupMotor(motor);
+    loadcell_setup(LoadCell); 
 
     // set PID mode to automatic
     // we can set this back to manual to allow
@@ -85,13 +92,22 @@ void setup() {
 
     // confirmation to run the motor if on either manual configuration
     if (!LOADCELL_CALIBRATED || !MOTOR_CALIBRATED) {
-        Serial.print("press r key to run motor"); 
+        Serial.println("press r key to run motor"); 
 		while (readSerial() != 'r');
     } else {
         // skip confirmation and run motor
-        Serial.print("PROGRAM WILL START AFTER 2 SECONDS");
+        Serial.println("PROGRAM WILL START AFTER 2 SECONDS");
         delay(2000);
     }
+
+    analogReadResolution(12);
+
+    // Initialize current + voltage sensor
+    Serial.println("disconnect sensor and press any key");
+    // calibrateCurrentSensor();
+    zero = sensor.calibrate();
+    calibrateVoltageSensor();
+    while (!readSerial());
 }
 
 // time variable for serial update interval
@@ -99,7 +115,9 @@ static int tt = 0;
 
 // last Input value i.e. loadcell reading
 // since we're setting Input and Output as 0 when we're stopping the motor, we need a copy of the loadcell reading to write back to the serial communication
-static float copyInput = 0;
+static double copyInput = 0;
+
+const int serialPrintInterval = 50;  // increase value to slow down serial print activity
 
 //*************************************************** LOOP FUNCTION ***************************************************
 void loop() {
@@ -120,15 +138,14 @@ void loop() {
         tareDone = false;
     }
 
-	Input = copyInput = readData(&LoadCell);
+	readData(LoadCell, Input, copyInput);
 
     // read the analog in value for potentialmeter
-    sensorValue = analogRead(analogInPin);
+    sensorValue = analogRead(potentiometerInPin);
     // map it to the range of the analog out
     // and set new setpoint for PID
-    static double maxSetpoint = 100;
 
-    Setpoint = max(min(map(sensorValue, 100, 1023, 0, maxSetpoint), maxSetpoint), 0);
+    Setpoint = max(min(map(sensorValue, 200 , 4095, 0, maxSetpoint), maxSetpoint), 0);
 
     // update tare flag status
     if (LoadCell.getTareStatus()) {
@@ -145,7 +162,17 @@ void loop() {
         Serial.printf("setpoint: %.2f\n", Setpoint);
 
         Serial.printf("motor output: %.2f%%\n", (Output - 1000) / 10);
-        Serial.printf("time: %d\r\n", millis());
+        Serial.printf("time: %d\n", millis());
+        
+        // float cur = getCurrentValue();
+        float vol = getVoltageValue();
+        float cur = sensor.getCurrentDC();
+        Serial.printf("current: %.2f amp\n", cur);
+        Serial.printf("voltage: %.2f vol\n", vol);
+        Serial.printf("power: %.2fW\n", cur*vol);
+        Serial.printf("sensor value: %.2f\n", sensorValue);
+        Serial.printf("\r\n");
+
         tt = millis();
     }
 
