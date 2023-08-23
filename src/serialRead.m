@@ -4,8 +4,9 @@
 % Select the correct port and correct Baudrate
 % Set the terminator to "CR/LF" (CR = Carriage Return and LF = Line Feed)
 clc; clear; close all; format compact; format shortG
-s = serialport('COM12', 9600);
+s = serialport('COM14', 9600);
 configureTerminator(s, "CR/LF");
+
 
 % Use this code for real-time data vizualisation (plot angle vs time)
 clc; close all; flush(s);

@@ -5,8 +5,6 @@
 #include <loadcell.h>
 #include <motor.h>
 #include <utils.h>
-#include <current_sensor_acs712.h>
-#include <voltage_sensor.h>
 #include <ACS712.h>
 
 int sensorValue = 0;  // value read from the potentialmeter
@@ -23,9 +21,6 @@ Servo motor;
 // HX711 constructor:
 HX711_ADC LoadCell(HX711_dout, HX711_sck);
 
-static double zero;
-ACS712 sensor(ACS712_20A, A2);
-
 // Define Variables we'll be connecting to
 double Setpoint, Input, Output;
 
@@ -38,7 +33,7 @@ static bool startMotor = false;
 
 // intput, output, setpoint, Kp, Ki, Kd, Proportional on Measurement/Error, Direct/Reversed output (+input->+output or +input->-output)
 // BIG BIG ASS PROPELLER
-PID myPID(&Input, &Output, &Setpoint, 0.7, 3, 0.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
+PID myPID(&Input, &Output, &Setpoint, 0.4, 2, 0.0, P_ON_E, DIRECT);  //P_ON_M specifies that Proportional on Measurement be used
 
 // SMALL PROPELLER
 // PID myPID(&Input, &Output, &Setpoint, 4.0, 16.0, 0.0, P_ON_E, DIRECT);  // P_ON_M specifies that Proportional on Measurement be used
@@ -90,24 +85,17 @@ void setup() {
     // this range is calibrated during manual configuration (LOADCELL_CALIBRATED = 0)
     myPID.SetOutputLimits(MIN_SIGNAL, MAX_SIGNAL);
 
-    // confirmation to run the motor if on either manual configuration
-    if (!LOADCELL_CALIBRATED || !MOTOR_CALIBRATED) {
-        Serial.println("press r key to run motor"); 
-		while (readSerial() != 'r');
-    } else {
-        // skip confirmation and run motor
-        Serial.println("PROGRAM WILL START AFTER 2 SECONDS");
-        delay(2000);
-    }
-
     analogReadResolution(12);
 
-    // Initialize current + voltage sensor
-    Serial.println("disconnect sensor and press any key");
-    // calibrateCurrentSensor();
-    zero = sensor.calibrate();
-    calibrateVoltageSensor();
-    while (!readSerial());
+    // confirmation to run the motor if on either manual configuration
+    if (!LOADCELL_CALIBRATED || !MOTOR_CALIBRATED) {
+        Serial.println("press any key, or press \"START PROGRAM\" to run the motor");
+        while (!readSerial());
+    } else {
+        // skip confirmation and run motor
+        Serial.println("MOTOR WILL START AFTER 2 SECONDS");
+        delay(2000);
+    }
 }
 
 // time variable for serial update interval
@@ -137,14 +125,6 @@ void loop() {
 
         tareDone = false;
     }
-    //tare current sensor
-    else if (inByte == 'y'){
-        zero = sensor.calibrate();
-    }
-    //tare voltage sensor
-    else if (inByte = 'u'){
-        calibrateVoltageSensor();
-    }
 
 	readData(LoadCell, Input, copyInput);
 
@@ -171,13 +151,6 @@ void loop() {
 
         Serial.printf("motor output: %.2f%%\n", (Output - 1000) / 10);
         Serial.printf("time: %d\n", millis());
-        
-        // float cur = getCurrentValue();
-        float vol = getVoltageValue();
-        float cur = sensor.getCurrentDC();
-        Serial.printf("current: %.2f amp\n", cur);
-        Serial.printf("voltage: %.2f vol\n", vol);
-        Serial.printf("power: %.2fW\n", cur*vol);
         Serial.printf("sensor value: %.2f\n", sensorValue);
         Serial.printf("\r\n");
 
